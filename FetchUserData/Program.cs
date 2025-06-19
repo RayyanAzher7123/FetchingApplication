@@ -5,49 +5,63 @@ class Program
 {
     static void Main()
     {
-        Console.Write("Enter PLU Number: ");
-        string pluNumber = Console.ReadLine();
-
+        Console.Write("Enter PLU number, Article Number or Description to Search: ");
+        string userInput = Console.ReadLine();
 
         string connectionString = "Server=ASB2012SV011LAB;Database=nexris;Trusted_Connection=True;";
-        string query = "SELECT * FROM item WHERE PLUNmbr = @PLUNmbr";
+        string query = "";
+        string columnToSearch = "";
 
+        if (int.TryParse(userInput, out int numericInput))
+        {
+            if (userInput.Length <= 7)
+            {
+                columnToSearch = "StkNmbr";
+            }
+            else
+            {
+                columnToSearch = "PLUNmbr";  
+            }
+
+            query = $"SELECT PLUNmbr, StkNmbr, Descr FROM item WHERE {columnToSearch} LIKE @input + '%'";
+        }
+        else
+        {
+            columnToSearch = "Descr";
+            query = $"SELECT PLUNmbr, StkNmbr, Descr FROM item WHERE {columnToSearch} LIKE @input + '%'";
+        }
 
         using (SqlConnection connection = new SqlConnection(connectionString))
         {
-            
-
-            SqlCommand command = new SqlCommand(query, connection);
-            command.Parameters.AddWithValue("@PLUNmbr", pluNumber);
-
-            try
+            using (SqlCommand command = new SqlCommand(query, connection))
             {
-                connection.Open();
-                SqlDataReader reader = command.ExecuteReader();
+                command.Parameters.AddWithValue("@input", userInput);
 
-                if (reader.HasRows)
+                try
                 {
-                    Console.WriteLine("\n--- Item Details ---\n");
+                    connection.Open();
+                    SqlDataReader reader = command.ExecuteReader();
 
-                    while (reader.Read())
+                    if (reader.HasRows)
                     {
-                        // Display all columns
-                        for (int i = 0; i < reader.FieldCount; i++)
+                        Console.WriteLine("\n--- Item Details ---\n");
+
+                        while (reader.Read())
                         {
-                            Console.WriteLine($"{reader.GetName(i)}: {reader[i]}");
+                            Console.WriteLine($"PLUNmbr: {reader["PLUNmbr"]}, StkNmbr: {reader["StkNmbr"]}, Descr: {reader["Descr"]}");
                         }
                     }
-                }
-                else
-                {
-                    Console.WriteLine("No item found with that PLU Number.");
-                }
+                    else
+                    {
+                        Console.WriteLine("No item found.");
+                    }
 
-                reader.Close();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error: {ex.Message}");
+                    reader.Close();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error: {ex.Message}");
+                }
             }
         }
 
