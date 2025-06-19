@@ -5,34 +5,35 @@ class Program
 {
     static void Main()
     {
-        Console.Write("Enter PLU number, Article Number or Description to Search: ");
-        string userInput = Console.ReadLine();
-
         string connectionString = "Server=ASB2012SV011LAB;Database=nexris;Trusted_Connection=True;";
-        string query = "";
-        string columnToSearch = "";
 
-        if (int.TryParse(userInput, out int numericInput))
+        while (true)
         {
-            if (userInput.Length <= 7)
+            Console.Clear();
+            Console.WriteLine("Press ESC to exit or enter a search term (PLU number, Stock number, or Description):");
+
+            string userInput = ReadLineOrEscape();
+            if (userInput == null)
             {
-                columnToSearch = "StkNmbr";
+                Console.WriteLine("\nExiting...");
+                break; // Escape key pressed
+            }
+
+            string query = "";
+            string columnToSearch = "";
+
+            if (int.TryParse(userInput, out int numericInput))
+            {
+                columnToSearch = (userInput.Length <= 7) ? "StkNmbr" : "PLUNmbr";
             }
             else
             {
-                columnToSearch = "PLUNmbr";  
+                columnToSearch = "Descr";
             }
 
             query = $"SELECT PLUNmbr, StkNmbr, Descr FROM item WHERE {columnToSearch} LIKE @input + '%'";
-        }
-        else
-        {
-            columnToSearch = "Descr";
-            query = $"SELECT PLUNmbr, StkNmbr, Descr FROM item WHERE {columnToSearch} LIKE @input + '%'";
-        }
 
-        using (SqlConnection connection = new SqlConnection(connectionString))
-        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
             using (SqlCommand command = new SqlCommand(query, connection))
             {
                 command.Parameters.AddWithValue("@input", userInput);
@@ -42,10 +43,9 @@ class Program
                     connection.Open();
                     SqlDataReader reader = command.ExecuteReader();
 
+                    Console.WriteLine("\n--- Matching Results ---\n");
                     if (reader.HasRows)
                     {
-                        Console.WriteLine("\n--- Item Details ---\n");
-
                         while (reader.Read())
                         {
                             Console.WriteLine($"PLUNmbr: {reader["PLUNmbr"]}, StkNmbr: {reader["StkNmbr"]}, Descr: {reader["Descr"]}");
@@ -53,7 +53,7 @@ class Program
                     }
                     else
                     {
-                        Console.WriteLine("No item found.");
+                        Console.WriteLine("No matching results found.");
                     }
 
                     reader.Close();
@@ -63,9 +63,45 @@ class Program
                     Console.WriteLine($"Error: {ex.Message}");
                 }
             }
-        }
 
-        Console.WriteLine("\nPress any key to exit.");
-        Console.ReadKey();
+            Console.WriteLine("\nPress any key to search again or ESC to exit...");
+            var key = Console.ReadKey(true);
+            if (key.Key == ConsoleKey.Escape)
+            {
+                Console.WriteLine("Exiting...");
+                break;
+            }
+        }
+    }
+
+    static string ReadLineOrEscape()
+    {
+        string input = "";
+        ConsoleKeyInfo key;
+
+        while (true)
+        {
+            key = Console.ReadKey(intercept: true);
+
+            if (key.Key == ConsoleKey.Enter)
+            {
+                Console.WriteLine(); // move to next line
+                return input;
+            }
+            else if (key.Key == ConsoleKey.Escape)
+            {
+                return null;
+            }
+            else if (key.Key == ConsoleKey.Backspace && input.Length > 0)
+            {
+                input = input.Substring(0, input.Length - 1);
+                Console.Write("\b \b");
+            }
+            else if (!char.IsControl(key.KeyChar))
+            {
+                input += key.KeyChar;
+                Console.Write(key.KeyChar);
+            }
+        }
     }
 }
